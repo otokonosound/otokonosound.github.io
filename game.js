@@ -86,6 +86,23 @@ function syncMenu(){
 }
 document.querySelectorAll('#difRow .opt').forEach(b=>b.onclick=()=>{diff=+b.dataset.d;store.set('diff',diff);syncMenu()});
 $('focus').onclick=()=>{focusMode=!focusMode;store.set('focus2',focusMode);syncMenu()};
+let syncMs=store.get('sync',0);
+function showSync(){$('syncV').textContent=(syncMs>0?'+':'')+syncMs+' ms'}
+function setSync(v){syncMs=Math.max(-150,Math.min(500,Math.round(v/5)*5));store.set('sync',syncMs);showSync()}
+$('syncM').onclick=()=>setSync(syncMs-10);$('syncP').onclick=()=>setSync(syncMs+10);showSync();
+let calib=null;
+$('syncCal').onpointerdown=e=>{e.preventDefault();
+  if(calib){if(ac.currentTime<calib.end)calib.taps.push(ac.currentTime);return}
+  initAudio();ac.resume().then(()=>{
+    const b=$('syncCal'),T=0.5,N=14,s0=ac.currentTime+0.8,clicks=[];
+    for(let i=0;i<N;i++){const t=s0+i*T;clicks.push(t);const o=ac.createOscillator(),gn=ac.createGain();o.frequency.value=i%4?880:1320;gn.gain.setValueAtTime(0.5,t);gn.gain.exponentialRampToValueAtTime(0.001,t+0.06);o.connect(gn);gn.connect(master);o.start(t);o.stop(t+0.07)}
+    calib={taps:[],end:s0+N*T};b.classList.add('on');b.textContent='TAPE ICI';$('syncHint').textContent='Tape le bouton en rythme sur chaque bip.';
+    setTimeout(()=>{const rep=(ac.outputLatency||0)+(ac.baseLatency||0),d=[];
+      for(const tp of calib.taps){let best=1e9;for(const c of clicks.slice(3)){const x=tp-c;if(Math.abs(x)<Math.abs(best))best=x}if(best>-0.2&&best<0.6)d.push(best)}
+      b.classList.remove('on');b.textContent='TEST';
+      if(d.length<6){$('syncHint').textContent='Pas assez de taps, réessaie en tapant sur chaque bip.'}
+      else{d.sort((x,y)=>x-y);setSync((d[d.length>>1]-rep)*1000);$('syncHint').textContent='Réglé ! Tu peux ajuster avec − et + si besoin.'}
+      calib=null},(s0+N*T-ac.currentTime+0.4)*1000)})};
 const RANKS=[[1,'Rookie du club'],[5,'Héros du dancefloor'],[10,'Tête d\'affiche'],[15,'Star des festivals'],[20,'Légende']];
 function lvlOf(xp){const lvl=Math.floor(Math.sqrt(xp/15000))+1;const a=(lvl-1)**2*15000,b=lvl**2*15000;let t=RANKS[0][1];for(const[r,n]of RANKS)if(lvl>=r)t=n;return{lvl,title:t,frac:(xp-a)/(b-a)}}
 
@@ -207,7 +224,7 @@ async function startGame(){
   songShift=shift;maxBase=computeMax();
   spLeft={};for(const n of notes)if(n.sp)spLeft[n.sp]=(spLeft[n.sp]||0)+1;
   spFail=new Set();score=0;streak=0;bestStreak=0;hits=0;misses=0;spMeter=0;spActive=false;spReadyShown=false;cursor=0;toasts=[];parts=[];ptrs.clear();tutoOn=!store.get('tuto',false);
-  lat=(ac.outputLatency||0)+(ac.baseLatency||0);
+  lat=(ac.outputLatency||0)+(ac.baseLatency||0)+(CAP?0:syncMs/1000);
   t0=ac.currentTime+0.3;nextStep=0;
   clearInterval(pump);
   if(song.demo){pump=setInterval(()=>{if(state!=='play')return;while(nextStep<D_BARS*8&&t0+nextStep*DSPB/2<ac.currentTime+0.15)demoStep(nextStep++)},25)}

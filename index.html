@@ -56,6 +56,9 @@ button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-rad
 .tog:after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s}
 .switch[aria-checked="true"] .tog{background:#2fbf4a;box-shadow:0 0 12px #2fbf4a66}
 .switch[aria-checked="true"] .tog:after{left:25px}
+.sync{flex-wrap:wrap}.sync>span:first-child{flex:1 1 60%}
+.stp{display:flex;align-items:center;gap:6px}.stp button{min-width:36px;height:36px;border-radius:10px;border:2px solid #1c2a3a;background:#fff6dc;color:inherit;font-weight:800;font-size:18px}
+.stp b{min-width:58px;text-align:center;font-variant-numeric:tabular-nums}.stp .cal{font-size:13px;padding:0 10px}.stp .cal.on{background:var(--gold);color:#1a1205}
 details.help{margin-top:12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:10px 14px}
 details.help summary{font-weight:700;cursor:pointer}
 .help ul{margin:10px 0 2px;padding:0;list-style:none;display:grid;gap:8px;font-size:14px;color:#d4d8df}
@@ -260,6 +263,7 @@ details.help summary{font-weight:700;cursor:pointer}
    <button class="opt" data-d="3" aria-pressed="false"><span class="dif"><svg width="26" height="22" aria-hidden="true"><path d="M8 2l7 9-7 9-7-9zM18 2l7 9-7 9-7-9z"/></svg></span>Expert</button>
   </div>
   <button class="switch" id="focus" role="switch" aria-checked="true"><span><b>Mode Focus</b><small>Fond noir, sans la scène de concert</small></span><span class="tog"></span></button>
+  <div class="switch sync"><span><b>Synchro audio</b><small id="syncHint">Notes en avance ou en retard sur le son (écouteurs Bluetooth) ? Lance le test.</small></span><span class="stp"><button id="syncM" aria-label="Moins">−</button><b id="syncV">0 ms</b><button id="syncP" aria-label="Plus">+</button><button class="cal" id="syncCal">TEST</button></span></div>
   <details class="help"><summary>Comment jouer</summary>
    <ul>
     <li><i style="background:#38e05a33;color:#38e05a">●</i>Tape le pad quand la note arrive sur lui.</li>
@@ -306,6 +310,6 @@ details.help summary{font-weight:700;cursor:pointer}
  </div>
 </div>
 
-<script src="songs.js?v=9"></script>
-<script src="charter.js?v=9"></script>
-<script src="game.js?v=9"></script>
+<script src="songs.js?v=10"></script>
+<script src="charter.js?v=10"></script>
+<script src="game.js?v=10"></script>
