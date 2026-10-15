@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="robots" content="noindex">
+<title>Otoko Live · Studio</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shrikhand&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+:root{--ink:#1c2a3a;--cream:#f6e6bd;--paper:#fff6dc;--red:#d8372a;--teal:#1d7470;--mustard:#f5b830;--pink:#e2577d}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--cream);color:var(--ink);font:500 15px/1.35 "Chakra Petch",system-ui,sans-serif;overscroll-behavior:none}
+body{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{padding:10px 14px 6px}
+h1{margin:0;font:400 26px/1 "Shrikhand",serif;color:var(--red);text-shadow:2px 2px 0 var(--ink)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+select,button,input{font:inherit;color:var(--ink);background:var(--paper);border:2px solid var(--ink);border-radius:10px;padding:7px 10px}
+button{font-weight:700;cursor:pointer}
+button.rec{background:var(--red);color:#fff}
+button.rec.on{animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.55}}
+button.play{background:var(--teal);color:#fff}
+#help{margin:8px 0 0;padding:8px 10px;border:2px dashed var(--ink);border-radius:10px;background:var(--paper);font-size:13px}
+#help b{color:var(--red)}
+#info{font-variant-numeric:tabular-nums;font-weight:700}
+#stage{position:relative;flex:1;min-height:150px}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#pads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 10px 12px;touch-action:none;user-select:none;-webkit-user-select:none}
+.pad{height:min(22vh,150px);border-radius:18px;border:3px solid var(--ink);box-shadow:0 5px 0 var(--ink);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;font-weight:700;color:#fff;text-shadow:1px 1px 0 var(--ink);transition:transform .04s}
+.pad.dn{transform:translateY(4px);box-shadow:0 1px 0 var(--ink);filter:brightness(1.25)}
+#msg{min-height:20px;font-size:13px;color:var(--teal);font-weight:700}
+details summary{cursor:pointer;font-weight:700}
+</style>
+</head>
+<body>
+<header>
+ <h1>Studio</h1>
+ <div class="row">
+  <select id="song"></select>
+  <select id="speed"><option value="1">Vitesse 100 %</option><option value="0.75">75 %</option><option value="0.6">60 %</option><option value="0.5">50 %</option></select>
+  <label><input type="checkbox" id="click"> Clic</label>
+ </div>
+ <div class="row">
+  <button id="back4">⟲ 4 mesures</button>
+  <button class="play" id="playBtn">▶ Écouter</button>
+  <button class="rec" id="recBtn">● Enregistrer</button>
+  <button id="undo">Annuler la prise</button>
+  <span id="info">—</span>
+ </div>
+ <details id="help"><summary>Comment faire</summary>
+  Choisis un titre, puis <b>● Enregistrer</b> : joue sur les 4 pads la partie que tu veux qu'on joue (voix, lead, riff…).
+  <br>• <b>Tap</b> = note · <b>doigt posé</b> = note tenue · <b>glisser d'un pad à l'autre</b> = glissé · <b>balayage rapide</b> = flèche · <b>deux doigts</b> = accord.
+  <br>• Tu peux ralentir, revenir 4 mesures en arrière et refaire un passage : la nouvelle prise remplace l'ancienne sur ce passage.
+  <br>• Joue la version la plus complète (Expert), je fais les autres difficultés et je cale tout au tempo exact.
+  <br>• Quand tu as fini : <b>Envoyer</b> en bas, puis glisse le fichier dans la conversation. Au clavier : D F J K.
+ </details>
+ <div id="msg"></div>
+</header>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="pads">
+ <div class="pad" data-l="0" style="background:#1fa39a">1</div>
+ <div class="pad" data-l="1" style="background:#e23b2e">2</div>
+ <div class="pad" data-l="2" style="background:#f5b830">3</div>
+ <div class="pad" data-l="3" style="background:#3a7fd0">4</div>
+</div>
+<div class="row" style="padding:0 10px 10px;justify-content:space-between">
+ <input type="range" id="seek" min="0" max="1000" value="0" style="flex:1">
+ <button id="exp">Envoyer ⤓</button>
+</div>
+<script src="songs.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const LANE=['#1fa39a','#e23b2e','#f5b830','#3a7fd0'];
+const SONGS=window.OTOKO_SONGS;let song=null,beats=[],takes=[],cur=null,recording=false;
+const au=new Audio();au.preload='auto';au.preservesPitch=true;au.mozPreservesPitch=true;au.webkitPreservesPitch=true;
+let ac=null;const syncMs=(()=>{try{return JSON.parse(localStorage.getItem('otoko.sync'))||0}catch(e){return 0}})();
+function outLat(){return ac?(ac.outputLatency||0)+(ac.baseLatency||0):0.02}
+// temps du morceau entendu par Otoko au moment du geste
+function now(){return au.currentTime-(outLat()+syncMs/1000)*au.playbackRate}
+for(const s of SONGS){const o=document.createElement('option');o.value=s.id;o.textContent=s.title;$('song').appendChild(o)}
+const key=()=>'otoko.studio.'+song.id;
+function save(){try{localStorage.setItem(key(),JSON.stringify(takes))}catch(e){}}
+async function load(id){
+  song=SONGS.find(s=>s.id===id);au.src=song.src;au.playbackRate=+$('speed').value;
+  try{const c=await (await fetch(song.chart)).json();beats=c.beats||[]}catch(e){beats=[]}
+  try{takes=JSON.parse(localStorage.getItem(key()))||[]}catch(e){takes=[]}
+  msg(takes.length?takes.length+' prise(s) déjà enregistrée(s) pour ce titre.':'Prêt.');
+}
+function msg(t){$('msg').textContent=t}
+$('song').onchange=e=>{stop();load(e.target.value)};
+$('speed').onchange=e=>{au.playbackRate=+e.target.value};
+function barAt(t){let k=0;while(k+1<beats.length&&beats[k+1]<=t)k++;return {bar:Math.floor(k/4)+1,beat:k%4+1,k}}
+function initAc(){if(!ac){ac=new(window.AudioContext||window.webkitAudioContext)();}ac.resume()}
+async function start(rec){
+  initAc();
+  if(rec){cur={start:Math.max(0,au.currentTime),end:null,ev:[],speed:au.playbackRate,lat:outLat(),sync:syncMs};recording=true;$('recBtn').classList.add('on');$('recBtn').textContent='■ Stop'}
+  await au.play();$('playBtn').textContent='❚❚ Pause';
+}
+function stop(){
+  au.pause();$('playBtn').textContent='▶ Écouter';
+  if(recording){recording=false;$('recBtn').classList.remove('on');$('recBtn').textContent='● Enregistrer';
+    for(const n of live.values())finish(n);live.clear();
+    cur.end=now();if(cur.ev.length){takes.push(cur);save();msg('Prise enregistrée : '+cur.ev.length+' notes ('+takes.length+' prise(s)).')}cur=null}
+}
+$('playBtn').onclick=()=>au.paused?start(false):stop();
+$('recBtn').onclick=()=>recording?stop():start(true);
+$('back4').onclick=()=>{const {k}=barAt(au.currentTime);const b=Math.max(0,(Math.floor(k/4)-4)*4);au.currentTime=beats[b]!=null?Math.max(0,beats[b]-0.05):Math.max(0,au.currentTime-8)};
+$('undo').onclick=()=>{if(takes.pop()){save();msg('Dernière prise annulée ('+takes.length+' restante(s)).')}};
+$('seek').oninput=e=>{if(au.duration)au.currentTime=e.target.value/1000*au.duration};
+au.onended=stop;
+
+/* ---------- gestes ---------- */
+const live=new Map();const pads=[...document.querySelectorAll('.pad')];
+function laneAt(x,y){for(const p of pads){const r=p.getBoundingClientRect();if(x>=r.left-4&&x<=r.right+4&&y>=r.top-40&&y<=r.bottom+20)return +p.dataset.l}return null}
+function lit(){const on=new Set([...live.values()].map(n=>n.lane));pads.forEach(p=>p.classList.toggle('dn',on.has(+p.dataset.l)))}
+function begin(id,lane,x){const t=now();const n={t:+t.toFixed(4),lane,up:null,path:[[+t.toFixed(4),lane]],x0:x,xs:[[performance.now(),x]]};live.set(id,n);lit();if(!au.paused&&$('click').checked){}}
+function move(id,lane,x){const n=live.get(id);if(!n)return;n.xs.push([performance.now(),x]);if(lane!=null&&lane!==n.path[n.path.length-1][1])n.path.push([+now().toFixed(4),lane]);n.lane=lane??n.lane;lit()}
+function finish(n){n.up=+now().toFixed(4);
+  // balayage : grand déplacement horizontal en moins de 180 ms
+  const t0=n.xs[0][0];const q=n.xs.filter(p=>p[0]-t0<180);const dx=q[q.length-1][1]-q[0][1];
+  const w=pads[0].getBoundingClientRect().width;n.swipe=Math.abs(dx)>w*0.6&&n.up-n.t<0.35*au.playbackRate?Math.sign(dx):0;
+  n.lane=n.path[0][1];delete n.xs;delete n.x0;if(cur)cur.ev.push(n)}
+function end(id){const n=live.get(id);if(!n)return;live.delete(id);if(recording)finish(n);lit()}
+const pz=$('pads');
+pz.addEventListener('pointerdown',e=>{e.preventDefault();pz.setPointerCapture(e.pointerId);const l=laneAt(e.clientX,e.clientY);if(l!=null)begin('p'+e.pointerId,l,e.clientX)});
+pz.addEventListener('pointermove',e=>{if(live.has('p'+e.pointerId))move('p'+e.pointerId,laneAt(e.clientX,e.clientY),e.clientX)});
+['pointerup','pointercancel'].forEach(t=>pz.addEventListener(t,e=>end('p'+e.pointerId)));
+const KEYS={d:0,f:1,j:2,k:3};
+addEventListener('keydown',e=>{const l=KEYS[e.key.toLowerCase()];if(l==null||e.repeat)return;begin('k'+l,l,0)});
+addEventListener('keyup',e=>{const l=KEYS[e.key.toLowerCase()];if(l!=null)end('k'+l)});
+
+/* ---------- export ---------- */
+$('exp').onclick=async()=>{
+  if(!takes.length){msg('Rien à envoyer pour ce titre.');return}
+  const data=JSON.stringify({song:song.id,created:new Date().toISOString(),ua:navigator.userAgent,takes});
+  const name='studio-'+song.id+'.json';const file=new File([data],name,{type:'application/json'});
+  try{if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:name});return}}catch(e){}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;a.click();msg('Fichier '+name+' téléchargé : glisse-le dans la conversation.');
+};
+
+/* ---------- affichage : les notes enregistrées défilent vers les pads ---------- */
+const cv=$('cv'),g=cv.getContext('2d');let lastClick=-1;
+function merged(){ // la prise la plus récente remplace les anciennes sur son passage
+  let out=[];for(const tk of takes){out=out.filter(n=>n.t<tk.start-0.05||n.t>tk.end+0.05).concat(tk.ev)}
+  if(cur)out=out.filter(n=>n.t<cur.start-0.05).concat(cur.ev);return out}
+function draw(){
+  const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(cv.width!==W*dpr){cv.width=W*dpr;cv.height=H*dpr}
+  g.setTransform(dpr,0,0,dpr,0,0);g.fillStyle='#1c2a3a';g.fillRect(0,0,W,H);
+  const t=now(),win=2.2*au.playbackRate,hy=H-14,lw=W/4,y=tt=>hy-(tt-t)/win*(hy-10);
+  for(let l=1;l<4;l++){g.fillStyle='#ffffff18';g.fillRect(l*lw,0,1,H)}
+  g.font='600 11px "Chakra Petch"';
+  for(let k=0;k<beats.length;k++){const b=beats[k];if(b<t-0.5||b>t+win)continue;const yy=y(b);g.fillStyle=k%4?'#ffffff22':'#f5b83088';g.fillRect(0,yy,W,k%4?1:2);if(k%4===0){g.fillStyle='#f5b830';g.fillText('M'+(k/4+1),4,yy-3)}}
+  for(const n of merged()){const a=n.t,b=Math.max(n.up??t,a);if(b<t-0.3||a>t+win)continue;const x=n.lane*lw+lw/2;
+    if(b-a>0.25*au.playbackRate){g.fillStyle=LANE[n.lane]+'99';g.fillRect(x-6,y(b),12,y(a)-y(b))}
+    g.fillStyle=LANE[n.lane];g.beginPath();g.arc(x,y(a),Math.min(16,lw/4),0,7);g.fill();g.strokeStyle='#f6e6bd';g.lineWidth=2;g.stroke();
+    if(n.swipe){g.fillStyle='#fff';g.fillText(n.swipe>0?'→':'←',x-4,y(a)+4)}}
+  g.fillStyle='#f6e6bd';g.fillRect(0,hy,W,3);
+  if(beats.length){const {bar,beat,k}=barAt(t);$('info').textContent='Mesure '+bar+' · temps '+beat+(recording?' · REC':'');
+    if($('click').checked&&!au.paused&&k!==lastClick&&beats[k]<=t&&t-beats[k]<0.05){lastClick=k;initAc();const o=ac.createOscillator(),gn=ac.createGain();o.frequency.value=k%4?900:1400;gn.gain.setValueAtTime(.25,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.05);o.connect(gn);gn.connect(ac.destination);o.start();o.stop(ac.currentTime+.06)}}
+  if(au.duration&&!au.paused)$('seek').value=au.currentTime/au.duration*1000;
+  requestAnimationFrame(draw)}
+load(SONGS[0].id).then(()=>{if(!takes.length)$('help').open=true;requestAnimationFrame(draw)});
+</script>
+</body>
+</html>
