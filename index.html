@@ -1,0 +1,311 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Otoko Live · joue l'album I'm Alive</title>
+<meta name="description" content="Joue l'album « I'm Alive » d'Otoko avant sa sortie le 4 décembre 2026. Gratuit, direct dans le navigateur.">
+<meta property="og:title" content="Otoko Live · joue l'album I'm Alive">
+<meta property="og:description" content="Un jeu de rythme gratuit sur les titres du nouvel album d'Otoko. Un nouveau titre chaque vendredi.">
+<meta property="og:image" content="https://otokonosound.github.io/img/cover.jpg">
+<meta property="og:url" content="https://otokonosound.github.io/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#f6e6bd">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Shrikhand&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+/* Layout : plein écran portrait ; canvas de jeu + écrans superposés (choix du titre, pause, résultats) */
+:root{--ink:#f2f4f8;--dim:#8b93a3;--gold:#ffc83d;--cyan:#29e6ff;--bg:#030305;--panel:#00000073;--line:#ffffff14;color-scheme:dark;
+  --display:"Bungee","Impact",sans-serif;--ui:"Chakra Petch","Segoe UI",system-ui,sans-serif}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.ov{position:fixed;inset:0;display:flex;flex-direction:column;overflow-y:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:max(12px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-bottom,0px));box-sizing:border-box}
+.wrap{width:100%;max-width:460px;margin:0 auto;display:flex;flex-direction:column;min-height:100%}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+button:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:10px}
+/* réglages */
+#menu{background:radial-gradient(120% 60% at 50% 0%,#2a1408 0%,#120a06 45%,#07070a 100%)}
+.bar{display:flex;align-items:center;gap:12px;padding:10px 4px 12px;border-bottom:1px solid #000;box-shadow:0 1px 0 var(--line)}
+.bar h1{flex:1;margin:0;font:700 19px var(--ui);letter-spacing:.04em;text-align:center}
+.ib{width:38px;height:38px;border-radius:9px;background:linear-gradient(#3b4049,#1a1d22);display:grid;place-items:center;color:#cfd3da;font-size:17px;font-weight:700;box-shadow:0 1px 0 #ffffff1a inset}
+.logo{font:400 15px var(--display);color:var(--gold);letter-spacing:.06em}
+.song{text-align:center;padding:20px 0 10px}
+.song .t{font:400 26px var(--display);letter-spacing:.02em;text-wrap:balance}
+.song .a{color:#c9a27a;font-size:15px;margin-top:2px}
+.meta{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-weight:700;font-variant-numeric:tabular-nums}
+.stars{color:var(--gold);letter-spacing:2px;font-size:17px}
+.sec{margin:20px 0 10px;display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.14em;font-size:12px;color:#d9dde5}
+.sec:before,.sec:after{content:"";flex:1;height:6px;border-radius:3px;background:repeating-linear-gradient(90deg,#5b616b 0 3px,#2a2e35 3px 6px)}
+.row{display:flex;justify-content:space-around;gap:8px}
+.opt{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;color:var(--dim);font-weight:600}
+.opt[aria-pressed="true"]{color:var(--gold)}
+.ins{width:66px;height:66px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(#3a3f47,#15181c);box-shadow:0 0 0 2px #00000099,0 0 0 3px #ffffff14}
+.opt[aria-pressed="true"] .ins{background:radial-gradient(#ffd56a,#b8700f);box-shadow:0 0 0 2px #000,0 0 22px #ffb2346e}
+.rank{font:700 11px var(--ui);padding:2px 7px;border-radius:5px;background:#2b2f36;color:#cfd3da}
+.opt[aria-pressed="true"] .rank{background:var(--gold);color:#1a1205}
+.dif{width:52px;height:52px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(#3c4149,#16191d);box-shadow:0 0 0 2px #000,0 0 0 3px #ffffff12}
+.opt[aria-pressed="true"] .dif{background:radial-gradient(#ffb347,#a2450b);box-shadow:0 0 0 2px #000,0 0 20px #ff8a2a80}
+.dif svg path,.dif svg circle,.dif svg rect{fill:#aab1bc}
+.opt[aria-pressed="true"] .dif svg *{fill:#1d0f02}
+.switch{margin-top:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);text-align:left;width:100%;box-sizing:border-box}
+.switch small{display:block;color:var(--dim);font-weight:500}
+.tog{flex:none;width:52px;height:30px;border-radius:15px;background:#3a3e46;position:relative;transition:background .2s}
+.tog:after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s}
+.switch[aria-checked="true"] .tog{background:#2fbf4a;box-shadow:0 0 12px #2fbf4a66}
+.switch[aria-checked="true"] .tog:after{left:25px}
+details.help{margin-top:12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);padding:10px 14px}
+details.help summary{font-weight:700;cursor:pointer}
+.help ul{margin:10px 0 2px;padding:0;list-style:none;display:grid;gap:8px;font-size:14px;color:#d4d8df}
+.help li{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:center}
+.help i{font-style:normal;width:30px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:700}
+.help .kb{color:var(--dim);font-size:13px;margin-top:8px}
+.play{margin-top:16px;height:66px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:12px;font:400 27px var(--display);color:#1d0f02;background:linear-gradient(#ffe08a,#f2a21b 55%,#c9700a);box-shadow:0 0 0 2px #000,0 6px 30px #ff9b2a55;width:100%}
+.spacer{height:20px;flex:none}
+.note{color:var(--dim);font-size:12px;text-align:center;margin-top:10px}
+/* pause */
+#pause{background:#000000cc;justify-content:center}
+#pause .wrap{justify-content:center;gap:12px;min-height:0}
+#pause h2{font:400 34px var(--display);text-align:center;margin:0 0 10px;color:var(--gold)}
+.btn{height:56px;border-radius:14px;background:linear-gradient(#3b4049,#16191d);box-shadow:0 0 0 2px #000,0 1px 0 #ffffff22 inset;font-weight:700;font-size:18px;letter-spacing:.04em;width:100%}
+.btn.main{background:linear-gradient(#ffe08a,#f2a21b 55%,#c9700a);color:#1d0f02}
+/* résultats */
+#results{background:#07070a;padding-left:0;padding-right:0;padding-top:0}
+.hero{position:relative;height:300px;flex:none;overflow:hidden;background:radial-gradient(60% 60% at 45% 55%,#fff6c8 0%,#ffb12b 22%,#e5480b 50%,#3a0a03 85%)}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%}
+.bigstars{position:absolute;top:max(14px,env(safe-area-inset-top,0px));left:0;right:0;text-align:center;font-size:42px;letter-spacing:6px;text-shadow:0 2px 0 #7a4a00,0 0 18px #ffd25a}
+.bigstars b{color:var(--gold);font-weight:400}.bigstars span{color:#00000055;text-shadow:none}
+.rbody{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;flex:1}
+.stats{padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.st{display:flex;justify-content:space-between;align-items:baseline;padding:9px 14px;border-radius:10px;background:linear-gradient(90deg,#16191e,#0d0f12);border:1px solid #ffffff10}
+.st b{font:400 26px var(--display);font-variant-numeric:tabular-nums}
+.st span{color:var(--dim);font-weight:700;letter-spacing:.12em;font-size:12px}
+.st .rec{color:var(--gold);font:700 12px var(--ui);letter-spacing:.1em;margin-left:8px}
+.lvl{margin-top:12px;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:#000;border:1px solid #ffffff14}
+.lvl .n{font:400 22px var(--display);color:#1a1205;background:var(--gold);border-radius:8px;padding:2px 10px}
+.lvl .xp{flex:1;min-width:0}
+.lvl .xp div{height:8px;border-radius:4px;background:#2a2e35;margin-top:6px;overflow:hidden}
+.lvl .xp i{display:block;height:100%;width:0;background:linear-gradient(90deg,#f7a21c,#ffd84a);transition:width 1s}
+.acts{margin-top:auto;padding-top:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.album{display:flex;align-items:center;gap:14px;padding:18px 0 6px}
+.cover{width:72px;height:72px;border-radius:10px;flex:none;background:#e9c27a url(img/cover-256.jpg) center/cover;box-shadow:0 0 0 2px #000,0 0 24px #c04dff55;display:grid;place-items:center;font:400 13px var(--display);color:#fff;text-shadow:0 1px 3px #000;text-align:center;line-height:1.05}
+.album .t{font:400 24px var(--display);letter-spacing:.02em;line-height:1.05}
+.album .a{color:#c9a27a;font-size:14px;margin-top:4px}
+.album .lv{color:var(--gold);font-size:12px;font-weight:700;letter-spacing:.1em;margin-top:6px}
+#songs{display:flex;flex-direction:column;gap:8px}
+.songrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);text-align:left;width:100%;box-sizing:border-box}
+.songrow[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 18px #ffb2342e;background:linear-gradient(90deg,#2a1a0866,#00000073)}
+.sn{min-width:0;display:flex;flex-direction:column}.sn b{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sn small{color:var(--dim);font-size:12px}
+.sb{display:flex;flex-direction:column;align-items:flex-end;flex:none}.sb em{font-style:normal;color:var(--gold);font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.file{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:13px;color:var(--dim)}
+.file label{padding:8px 12px;border-radius:10px;border:1px dashed #ffffff33;color:#d4d8df;font-weight:600;cursor:pointer;flex:none}
+.file input{position:absolute;opacity:0;width:1px;height:1px}
+.file label:focus-within{outline:2px solid var(--cyan);outline-offset:2px}
+.promo{margin-top:12px;display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:linear-gradient(100deg,#2a0f3a,#14060f 60%,#2a1405);border:1px solid #c04dff55;box-shadow:0 0 24px #c04dff22}
+.promo .pc{width:54px;height:54px;flex:none;border-radius:8px;background:#e9c27a url(img/cover-256.jpg) center/cover;display:grid;place-items:center;font:400 10px var(--display);color:#fff;text-shadow:0 1px 3px #000;text-align:center;line-height:1.05;box-shadow:0 0 0 2px #000}
+.promo b{display:block;font:400 17px var(--display);letter-spacing:.02em}
+.promo small{display:block;color:#e3c6ff;font-size:13px;margin-top:2px}
+.acts2{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+.acts2.two{grid-template-columns:repeat(2,1fr)}
+.btn.alt{background:linear-gradient(#b85cff,#6b1fb0);color:#fff}
+.release{margin-top:4px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:12px;background:linear-gradient(100deg,#2a0f3a,#14060f 60%,#2a1405);border:1px solid #c04dff55;font-weight:700;font-size:13px;letter-spacing:.06em;color:#e3c6ff}
+.release b{display:block;font:400 18px var(--display);color:#fff;letter-spacing:.02em}
+.release .cd{font:400 26px var(--display);color:var(--gold);text-align:right;line-height:1}.release .cd small{display:block;font:700 11px var(--ui);color:#e3c6ff;letter-spacing:.1em}
+.social{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.sbtn{display:flex;align-items:center;justify-content:center;gap:8px;height:44px;border-radius:11px;color:#fff;text-decoration:none;font-weight:700;font-size:14px;letter-spacing:.02em;box-shadow:0 0 0 2px #000}
+.sbtn.sc{background:linear-gradient(#ff7a2a,#d94a00)}.sbtn.ig{background:linear-gradient(120deg,#7b3cff,#e0306f 55%,#ffb12b)}
+.songrow.locked{opacity:.55;cursor:default}.songrow.locked em{color:#e3c6ff}
+
+/* ---------- page d'accueil promo, aux couleurs de la pochette ---------- */
+.home{--cream:#f6e6bd;--paper:#fbf2d8;--ink:#1c2a3a;--teal:#1d7470;--red:#d8372a;--orange:#ef8a25;--pink:#e2577d;--muted:#5d5a52;
+  color:var(--ink);font-family:var(--ui);padding:0;
+  background:radial-gradient(60% 40% at 0% 8%,#2a8a8466,transparent 70%),radial-gradient(55% 35% at 100% 18%,#ef8a2566,transparent 70%),radial-gradient(70% 40% at 50% 100%,#e2577d33,transparent 70%),var(--cream)}
+.home .hwrap{width:100%;max-width:520px;margin:0 auto;padding:max(14px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(24px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));box-sizing:border-box}
+.htop{display:flex;justify-content:space-between;align-items:center;padding:4px 0 14px}
+.brand{font:400 18px var(--display);letter-spacing:.04em;color:var(--ink)}
+.hig{font-weight:700;font-size:14px;color:var(--teal);text-decoration:none}
+.hhero{text-align:center}
+.hcover{display:block;width:min(78vw,340px);aspect-ratio:1;object-fit:cover;margin:4px auto 0;border-radius:18px;box-shadow:0 0 0 3px var(--ink),10px 10px 0 var(--red);transform:rotate(-2deg)}
+.kicker{margin:22px 0 0;font-weight:700;letter-spacing:.16em;text-transform:uppercase;font-size:13px;color:var(--teal)}
+.htitle{margin:2px 0 0;font:400 clamp(46px,14vw,68px)/1 "Shrikhand",var(--display);color:var(--red);text-shadow:3px 3px 0 var(--ink);letter-spacing:.01em}
+.pitch{margin:12px 0 0;font:700 21px var(--ui);text-wrap:balance}
+.count{display:flex;justify-content:center;gap:10px;margin-top:18px}
+.count div{min-width:70px;padding:10px 6px 8px;border-radius:14px;background:var(--ink);color:var(--paper);box-shadow:4px 4px 0 var(--orange)}
+.count b{display:block;font:400 30px/1 var(--display);font-variant-numeric:tabular-nums}
+.count span{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+.hdate{margin:12px 0 0;font-weight:600;color:var(--muted)}
+.cta{margin-top:20px;width:100%;height:64px;border-radius:16px;background:var(--red);color:#fff8e6;font:400 24px var(--display);letter-spacing:.03em;box-shadow:0 0 0 3px var(--ink),6px 6px 0 var(--ink)}
+.cta:active{transform:translate(3px,3px);box-shadow:0 0 0 3px var(--ink),3px 3px 0 var(--ink)}
+.free{margin:12px 0 0;font-size:13px;color:var(--muted)}
+.home h2{font:400 30px/1.1 "Shrikhand",var(--display);color:var(--teal);margin:38px 0 14px;text-align:center}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.steps li{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;padding:14px;border-radius:16px;background:var(--paper);box-shadow:0 0 0 2px var(--ink)}
+.steps i{font-style:normal;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font:400 22px var(--display);color:#fff8e6;background:var(--orange);box-shadow:0 0 0 2px var(--ink)}
+.steps li:nth-child(2) i{background:var(--pink)}.steps li:nth-child(3) i{background:var(--teal)}
+.steps b{display:block;font-size:18px;margin-top:2px}.steps span{display:block;color:var(--muted);margin-top:4px;font-size:15px;line-height:1.4}
+.trk{display:grid;gap:8px}
+.trow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--paper);box-shadow:0 0 0 2px var(--ink);text-align:left;width:100%;box-sizing:border-box;color:var(--ink)}
+.trow .n{font:400 16px var(--display);width:26px;color:var(--orange)}
+.trow .tt{flex:1;min-width:0}.trow .tt b{display:block;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.trow .tt small{color:var(--muted)}
+.trow .go{flex:none;font-weight:700;font-size:13px;padding:7px 12px;border-radius:10px;background:var(--red);color:#fff8e6}
+.trow.lock{background:transparent;box-shadow:0 0 0 2px #1c2a3a55;color:#1c2a3a99}.trow.lock .go{background:transparent;color:var(--teal);padding:0}
+.defi{padding:16px;border-radius:16px;background:var(--ink);color:var(--paper);box-shadow:6px 6px 0 var(--pink);text-align:center}
+.defi p{margin:0;font-size:17px;font-weight:600;line-height:1.4}.defi small{display:block;margin-top:8px;opacity:.75}
+.hsocial{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.hsocial a{display:flex;align-items:center;justify-content:center;height:52px;border-radius:14px;color:#fff;font-weight:700;text-decoration:none;box-shadow:0 0 0 2px var(--ink)}
+.hsocial .sc{background:#e8650c}.hsocial .ig{background:linear-gradient(120deg,#6a3be0,#d8306a 55%,#f0a12b)}
+.hfoot{text-align:center;color:var(--muted);font-size:13px;margin-top:22px}
+.rsong{color:var(--dim);font-weight:700;text-align:center;padding-top:10px;font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- écrans du jeu aux couleurs de la pochette (crème, encre, rouge, bleu canard) ---------- */
+:root{color-scheme:light;--bg:#1c2a3a;--gold:#f5b830;--cyan:#1d7470;--K:#1c2a3a;--Cr:#f6e6bd;--Pa:#fbf2d8;--Rd:#d8372a;--Tl:#1d7470;--Or:#ef8a25;--Pk:#e2577d;--Mu:#5d5a52}
+#menu,#results{color:var(--K);background:radial-gradient(60% 40% at 0% 8%,#2a8a8455,transparent 70%),radial-gradient(55% 35% at 100% 18%,#ef8a2555,transparent 70%),radial-gradient(70% 40% at 50% 100%,#e2577d33,transparent 70%),var(--Cr)}
+.bar{border-bottom:2px solid var(--K);box-shadow:none}
+.ib{background:var(--Pa);color:var(--K);box-shadow:0 0 0 2px var(--K),3px 3px 0 var(--K)}
+.logo{color:var(--Rd)}
+.song .a,.album .a{color:var(--Tl);font-weight:700}
+.album .t{font-family:"Shrikhand",var(--display);color:var(--Rd);text-shadow:2px 2px 0 var(--K);font-size:26px}
+.album .lv{color:var(--Or)}
+.cover{box-shadow:0 0 0 2px var(--K),4px 4px 0 var(--Rd)}
+.meta,.switch,details.help{background:var(--Pa);border:2px solid var(--K);color:var(--K)}
+.stars{color:var(--gold);text-shadow:1px 1px 0 var(--K)}
+.sec{color:var(--K)}
+.sec:before,.sec:after{height:3px;background:var(--K);opacity:.85}
+.opt{color:var(--Mu)}.opt[aria-pressed="true"]{color:var(--Rd)}
+.dif{background:var(--Pa);box-shadow:0 0 0 2px var(--K)}
+.opt[aria-pressed="true"] .dif{background:var(--Or);box-shadow:0 0 0 2px var(--K),3px 3px 0 var(--K)}
+.dif svg path,.dif svg circle,.dif svg rect{fill:var(--K)}
+.opt[aria-pressed="true"] .dif svg *{fill:var(--Pa)}
+.switch small,.note,.file{color:var(--Mu)}
+.tog{background:#cdbf98}.tog:after{background:var(--Pa);box-shadow:0 0 0 1.5px var(--K)}
+.switch[aria-checked="true"] .tog{background:var(--Tl);box-shadow:none}
+.help ul{color:var(--K)}
+.play{color:#fff8e6;background:var(--Rd);box-shadow:0 0 0 3px var(--K),6px 6px 0 var(--K)}
+.play:active{transform:translate(3px,3px);box-shadow:0 0 0 3px var(--K),3px 3px 0 var(--K)}
+.songrow{background:var(--Pa);border:2px solid var(--K);color:var(--K)}
+.songrow[aria-pressed="true"]{border-color:var(--K);box-shadow:4px 4px 0 var(--Rd);background:#fff7e2}
+.sn small{color:var(--Mu)}.sb em{color:var(--Or)}
+.songrow.locked{opacity:.6}.songrow.locked em{color:var(--Mu)}
+.release{background:var(--K);border:0;color:#e9dcb6;box-shadow:4px 4px 0 var(--Or)}
+.release b{color:var(--Pa)}.release .cd{color:var(--gold)}.release .cd small{color:#e9dcb6}
+.sbtn{box-shadow:0 0 0 2px var(--K),3px 3px 0 var(--K)}
+.sbtn.sc{background:#ea6a12}.sbtn.ig{background:linear-gradient(120deg,#8a3cf0,#e0306f 55%,#f5a623)}
+/* pause */
+#pause{background:#1c2a3ae0}
+#pause h2{font-family:"Shrikhand",var(--display);color:var(--Cr);text-shadow:3px 3px 0 var(--Rd)}
+.btn{background:var(--Pa);color:var(--K);box-shadow:0 0 0 2px var(--K),4px 4px 0 var(--K)}
+#pause .btn{box-shadow:0 0 0 2px var(--K),4px 4px 0 #0b121b}
+.btn.main{background:var(--Rd);color:#fff8e6}
+.btn.alt{background:var(--Pk);color:#fff8e6}
+/* résultats */
+#results .hero{background:radial-gradient(55% 55% at 50% 62%,#fff1c4 0%,#f9d56e 30%,#f4c08c 60%,#f6e6bd 100%);border-bottom:3px solid var(--K)}
+.bigstars{text-shadow:2px 2px 0 var(--K)}
+.bigstars b{color:var(--gold)}.bigstars span{color:#1c2a3a33}
+.st{background:var(--Pa);border:2px solid var(--K)}
+.st span{color:var(--Mu)}.st .rec{color:var(--Rd)}
+.lvl{background:var(--Pa);border:2px solid var(--K)}
+.lvl .n{color:var(--K);background:var(--gold);box-shadow:0 0 0 2px var(--K)}
+.lvl .xp div{background:#e6d6aa}.lvl .xp i{background:var(--Or)}
+.promo{background:var(--Pa);border:2px solid var(--K);box-shadow:4px 4px 0 var(--Pk)}
+.promo b{color:var(--Rd)}.promo small{color:var(--Mu)}
+.promo .pc{box-shadow:0 0 0 2px var(--K)}
+</style>
+
+<canvas id="c" aria-label="Manche de jeu"></canvas>
+
+<div id="home" class="ov home">
+ <div class="hwrap">
+  <header class="htop"><span class="brand">OTOKO LIVE</span><a class="hig" id="hIg" target="_blank" rel="noopener"></a></header>
+  <section class="hhero">
+   <img class="hcover" src="img/cover.jpg" alt="Pochette de l'album I'm Alive d'Otoko">
+   <p class="kicker">Otoko · nouvel album</p>
+   <h1 class="htitle">I'm Alive</h1>
+   <p class="pitch">Joue mon album avant sa sortie.</p>
+   <div class="count" id="hCount" aria-live="polite"></div>
+   <p class="hdate" id="hDate"></p>
+   <button class="cta" id="hPlay">JOUER MAINTENANT ▶</button>
+   <p class="free">Gratuit · direct dans le navigateur · mets le son 🔊</p>
+  </section>
+  <section><h2>Comment ça marche</h2>
+   <ol class="steps">
+    <li><i>1</i><div><b>Joue au rythme</b><span>Les notes descendent vers 4 pastilles en bas de l'écran. Tape la bonne pastille pile quand la note arrive dessus.</span></div></li>
+    <li><i>2</i><div><b>Poste ton score</b><span id="hStep2">À la fin, partage ton image en story Instagram et tague-moi. Je repartage les meilleurs scores.</span></div></li>
+    <li><i>3</i><div><b>Reviens chaque vendredi</b><span>Un nouveau titre de l'album devient jouable chaque semaine, jusqu'à la sortie.</span></div></li>
+   </ol>
+  </section>
+  <section><h2>Les titres</h2><div class="trk" id="hTracks"></div></section>
+  <section id="hDefiSec"><h2>Défi de la semaine</h2><div class="defi"><p id="hDefi"></p><small>Poste ta story avec #OtokoLive</small></div></section>
+  <section><h2>Suis l'album</h2><div class="hsocial"><a class="sc" id="hSc" target="_blank" rel="noopener">▶ SoundCloud</a><a class="ig" id="hIg2" target="_blank" rel="noopener">◎ Instagram</a></div></section>
+  <p class="hfoot">Otoko Live · un jeu de rythme pour l'album I'm Alive d'Otoko</p>
+ </div>
+</div>
+
+<div id="menu" class="ov" hidden>
+ <div class="wrap">
+  <div class="bar"><button class="ib" id="menuBack" aria-label="Retour à l'accueil">←</button><h1>OTOKO LIVE</h1><span class="ib" aria-hidden="true">★</span></div>
+  <div class="album"><div class="cover" role="img" aria-label="Pochette de l'album I'm Alive"></div><div><div class="t">I'm Alive</div><div class="a">Otoko · l'album</div><div class="lv" id="mRank">NIVEAU 1</div></div></div>
+  <div class="release"><span><span id="mRelease">NOUVEL ALBUM</span><b id="mDate"></b></span><span class="cd" id="mCd"></span></div>
+  <div class="social"><a class="sbtn sc" id="mSc" target="_blank" rel="noopener">▶ SoundCloud</a><a class="sbtn ig" id="mIg" target="_blank" rel="noopener">◎ Instagram</a></div>
+  <div class="sec">TITRES</div>
+  <div id="songs"></div>
+  <div class="file"><span id="fileMsg" aria-live="polite"></span></div>
+  <div class="sec">DIFFICULTÉ</div>
+  <div class="row" id="difRow">
+   <button class="opt" data-d="0" aria-pressed="false"><span class="dif"><svg width="22" height="22" aria-hidden="true"><circle cx="11" cy="11" r="8"/></svg></span>Facile</button>
+   <button class="opt" data-d="1" aria-pressed="true"><span class="dif"><svg width="22" height="22" aria-hidden="true"><rect x="4" y="4" width="14" height="14" rx="2"/></svg></span>Moyen</button>
+   <button class="opt" data-d="2" aria-pressed="false"><span class="dif"><svg width="22" height="22" aria-hidden="true"><path d="M11 2l9 9-9 9-9-9z"/></svg></span>Difficile</button>
+   <button class="opt" data-d="3" aria-pressed="false"><span class="dif"><svg width="26" height="22" aria-hidden="true"><path d="M8 2l7 9-7 9-7-9zM18 2l7 9-7 9-7-9z"/></svg></span>Expert</button>
+  </div>
+  <button class="switch" id="focus" role="switch" aria-checked="true"><span><b>Mode Focus</b><small>Fond noir, sans la scène de concert</small></span><span class="tog"></span></button>
+  <details class="help"><summary>Comment jouer</summary>
+   <ul>
+    <li><i style="background:#38e05a33;color:#38e05a">●</i>Tape le pad quand la note arrive sur lui.</li>
+    <li><i style="background:#e03cff33;color:#ff9cff">»</i>Flèche : glisse le doigt dans son sens.</li>
+    <li><i style="background:#e03cff33;color:#ff9cff">∿</i>Trait violet : tape la 1re note, garde le doigt et glisse vers les suivantes.</li>
+    <li><i style="background:#ffd23a33;color:#ffd23a">┃</i>Note tenue : garde le doigt posé jusqu'au bout du trait.</li>
+    <li><i style="background:#ffb22b33;color:#ffb22b">━</i>Barre dorée : tape n'importe où.</li>
+    <li><i style="background:#29e6ff33;color:#29e6ff">★</i>Réussis les notes étoilées, puis tape la barre cyan : le Mode Drop double tes points.</li>
+    <li><i style="background:#ff3d3d33;color:#ff6b6b">✕</i>Une note ratée étouffe le son jusqu'à ta prochaine note réussie.</li>
+   </ul>
+   <div class="kb">Au clavier : D F J K pour les pads, ← → pour les flèches, Espace pour le Mode Drop.</div>
+  </details>
+  <div class="spacer"></div>
+  <button class="play" id="playBtn">JOUER ▶</button>
+  <div class="note">Un nouveau titre se débloque chaque vendredi jusqu’à la sortie de l’album.</div>
+ </div>
+</div>
+
+<div id="pause" class="ov" hidden>
+ <div class="wrap">
+  <h2>PAUSE</h2>
+  <button class="btn main" id="resume">Reprendre</button>
+  <button class="btn" id="restart">Recommencer</button>
+  <button class="btn" id="quit">Choisir un titre</button>
+ </div>
+</div>
+
+<div id="results" class="ov" hidden>
+ <div class="hero"><canvas id="hc"></canvas><div class="bigstars" id="rStars"></div></div>
+ <div class="rbody">
+  <div class="rsong" id="rSong"></div>
+  <div class="stats">
+   <div class="st"><span>SCORE<em class="rec" id="rRec" hidden>RECORD !</em></span><b id="rScore">0</b></div>
+   <div class="st"><span>PRÉCISION</span><b id="rAcc">0 %</b></div>
+   <div class="st"><span>NOTES</span><b id="rNotes">0</b></div>
+   <div class="st"><span>MEILLEURE SÉRIE</span><b id="rStreak">0</b></div>
+  </div>
+  <div class="lvl"><span class="n" id="rLvl">1</span><div class="xp"><b id="rTitle">Rookie du club</b><div><i id="rXp"></i></div></div><span id="rNext" style="color:var(--dim);font-weight:700">2</span></div>
+  <div class="promo"><div class="pc" role="img" aria-label="Pochette de l'album I'm Alive"></div><div><b id="pTitle">Otoko · I'm Alive</b><small id="pSub">Nouvel album, sortie début décembre 2026</small></div></div>
+  <div class="acts2" id="promoActs"><button class="btn alt" id="share">📸 Partager en story Instagram</button></div>
+  <div class="social"><a class="sbtn sc" id="rSc" target="_blank" rel="noopener">▶ SoundCloud</a><a class="sbtn ig" id="rIg" target="_blank" rel="noopener">◎ Suivre Otoko</a></div>
+  <div class="note" id="shareMsg" aria-live="polite"></div>
+  <div class="acts"><button class="btn main" id="again">↻ Rejouer</button><button class="btn" id="toMenu">Titres</button></div>
+ </div>
+</div>
+
+<script src="songs.js?v=7"></script>
+<script src="charter.js?v=7"></script>
+<script src="game.js?v=7"></script>
