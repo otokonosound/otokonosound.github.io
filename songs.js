@@ -28,6 +28,6 @@ window.OTOKO_ALBUM = {
 /* Titres jouables. unlock (facultatif) : date à partir de laquelle le titre se débloque (AAAA-MM-JJ).
    Ajouter un titre = une ligne ici + son mp3 dans audio/ + sa partition dans charts/. */
 window.OTOKO_SONGS = [
-  { id: 'analog-shadows', title: 'Analog Shadows', sub: "Otoko · I'm Alive", src: 'audio/analog-shadows.mp3', chart: 'charts/analog-shadows.json?v=10' },
-  { id: 'im-alive', title: "I'm Alive", sub: "Otoko · I'm Alive", src: 'audio/im-alive.mp3', chart: 'charts/im-alive.json?v=10' }
+  { id: 'analog-shadows', title: 'Analog Shadows', sub: "Otoko · I'm Alive", src: 'audio/analog-shadows.mp3', chart: 'charts/analog-shadows.json?v=11' },
+  { id: 'im-alive', title: "I'm Alive", sub: "Otoko · I'm Alive", src: 'audio/im-alive.mp3', chart: 'charts/im-alive.json?v=11' }
 ];
